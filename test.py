@@ -149,7 +149,6 @@ class ConverterBot:
                                           self.continue_or_stop
                                           )
             return
-
         if from_currency == target_currency:
             final_amount = amount
         else:
