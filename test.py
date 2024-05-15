@@ -2,9 +2,9 @@ import telebot
 from telebot import types
 import json
 import iso4217
-from config import *
 import time
 import requests
+from config import API_KEY, URL
 
 bot = telebot.TeleBot(API_KEY)
 url = URL
@@ -130,6 +130,10 @@ class ConverterBot:
         msg = bot.send_message(message.chat.id, 'Оберіть цільову валюту:', reply_markup=markup)
         bot.register_next_step_handler(msg, self.result_conversation)
 
+    def send_message_with_markup(self, chat_id, text, markup, next_step_handler):
+        msg = bot.send_message(chat_id, text, reply_markup=markup)
+        bot.register_next_step_handler(msg, next_step_handler)
+
     def result_conversation(self, message):
         from_currency = self.iso4217_mapping.get(self.user_data.get(message.chat.id, 'from_currency'))
         amount = self.user_data.get(message.chat.id, 'amount')
@@ -141,8 +145,9 @@ class ConverterBot:
             bot.send_message(message.chat.id, 'Вибачте, не можу знайти курс для даної валюти.')
             time.sleep(2)
             markup = self.menu_2(message.chat.id)
-            msg = bot.send_message(message.chat.id, 'Бажаєте продовжити далі чи зупинити бота?', reply_markup=markup)
-            bot.register_next_step_handler(msg, self.continue_or_stop)
+            self.send_message_with_markup(message.chat.id, 'Бажаєте продовжити далі чи зупинити бота?', markup,
+                                          self.continue_or_stop
+                                          )
             return
 
         if from_currency == target_currency:
@@ -157,9 +162,11 @@ class ConverterBot:
 
         bot.send_message(message.chat.id, f'Результат конвертації: {final_amount:.2f} {target_currency}')
         time.sleep(2)
+
         markup = self.menu_2(message.chat.id)
-        msg = bot.send_message(message.chat.id, 'Бажаєте продовжити далі чи зупинити бота?', reply_markup=markup)
-        bot.register_next_step_handler(msg, self.continue_or_stop)
+        self.send_message_with_markup(message.chat.id, 'Бажаєте продовжити далі чи зупинити бота?', markup,
+                                      self.continue_or_stop
+                                      )
 
     def continue_or_stop(self, message):
         if message.text == 'CONTINUE':
@@ -176,7 +183,7 @@ class ConverterBot:
                 for entry in history_data:
                     history_text += f"Вихідна валюта: {entry['from_currency']}, Цільова валюта: {entry['to_currency']}, Сума: {entry['amount']}, Результат: {entry['result']:.2f}\n"
                 bot.send_message(message.chat.id, history_text)
-                time.sleep(2)
+                time.sleep(2.5)
                 markup = self.menu_2(message.chat.id)
                 msg = bot.send_message(message.chat.id, 'Бажаєте продовжити далі чи зупинити бота?',
                                        reply_markup=markup
@@ -184,12 +191,6 @@ class ConverterBot:
                 bot.register_next_step_handler(msg, self.continue_or_stop)
             else:
                 bot.send_message(message.chat.id, 'Історія конвертацій порожня.')
-                time.sleep(2)
-                markup = self.menu_2(message.chat.id)
-                msg = bot.send_message(message.chat.id, 'Бажаєте продовжити далі чи зупинити бота?',
-                                       reply_markup=markup
-                                       )
-                bot.register_next_step_handler(msg, self.continue_or_stop)
 
 
 converter_bot = ConverterBot()
