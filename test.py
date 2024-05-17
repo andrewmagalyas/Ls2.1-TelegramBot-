@@ -200,11 +200,6 @@ def welcome(message):
     converter_bot.welcome(message)
 
 
-@bot.message_handler(commands=['stop'])
-def stop_bot(message):
-    converter_bot.stop_bot(message)
-
-
 @bot.message_handler(commands=['convert'])
 def start_conversion(message):
     converter_bot.start_conversion(message)
