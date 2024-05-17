@@ -87,8 +87,10 @@ class ConverterBot:
 
     def menu_1(self, chat_id):
         markup = types.ReplyKeyboardMarkup(row_width=2, one_time_keyboard=True)
+
         for currency in self.iso4217_mapping.values():
             markup.add(types.KeyboardButton(currency))
+        button_other = types.KeyboardButton('ІНШІ ВАЛЮТИ')
         return markup
 
     def menu_2(self, chat_id):
