@@ -174,7 +174,6 @@ class ConverterBot:
             bot.register_next_step_handler(msg, self.source_currency)
         elif message.text == 'END':
             bot.send_message(message.chat.id, 'Дякую. До побачення.')
-            bot.stop_polling()
         elif message.text == 'History':
             history_data = self.get_conversion_history(message.chat.id)
             if history_data:
