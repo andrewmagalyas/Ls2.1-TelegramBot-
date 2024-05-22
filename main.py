@@ -29,7 +29,7 @@ class UserData:
             del self.data[chat_id]
 
 
-class ConverterBot:
+class MenuBot:
     def __init__(self):
         self.user_data = UserData()
         self.iso4217_mapping = {
@@ -37,6 +37,28 @@ class ConverterBot:
             'EUR': 'EUR',
             'UAH': 'UAH',
         }
+
+    def menu_1(self, chat_id):
+        markup = types.ReplyKeyboardMarkup(row_width=2, one_time_keyboard=True)
+        button_other_currency = types.KeyboardButton('ІНШІ ВАЛЮТИ')
+        for currency in self.iso4217_mapping.values():
+            markup.add(types.KeyboardButton(currency))
+        markup.add(button_other_currency)
+        return markup
+
+    def menu_2(self, chat_id):
+        markup = types.ReplyKeyboardMarkup(row_width=2, one_time_keyboard=True)
+        button_continue = types.KeyboardButton('CONTINUE')
+        button_end = types.KeyboardButton('END')
+        button_history = types.KeyboardButton('History')
+        markup.add(button_continue, button_end, button_history)
+        return markup
+
+class ConverterBot:
+    def __init__(self, menu_bot):
+        self.user_data = UserData()
+        self.menu_bot = menu_bot
+        self.iso4217_mapping = self.menu_bot.iso4217_mapping
 
     def save_conversion_history(self, chat_id, from_currency, to_currency, amount, result):
         history_file = f'history_{chat_id}.json'
@@ -86,22 +108,6 @@ class ConverterBot:
                     return rate_cross, rate_cross
         return None, None
 
-    def menu_1(self, chat_id):
-        markup = types.ReplyKeyboardMarkup(row_width=2, one_time_keyboard=True)
-        button_other_currency = types.KeyboardButton('ІНШІ ВАЛЮТИ')
-        for currency in self.iso4217_mapping.values():
-            markup.add(types.KeyboardButton(currency))
-        markup.add(button_other_currency)
-        return markup
-
-    def menu_2(self, chat_id):
-        markup = types.ReplyKeyboardMarkup(row_width=2, one_time_keyboard=True)
-        button_continue = types.KeyboardButton('CONTINUE')
-        button_end = types.KeyboardButton('END')
-        button_history = types.KeyboardButton('History')
-        markup.add(button_continue, button_end, button_history)
-        return markup
-
     def welcome(self, message):
         bot.send_message(message.chat.id,
                          'Привіт! Я бот конвертації валют. Використовуй команду /convert, щоб почати конвертацію.'
@@ -112,7 +118,7 @@ class ConverterBot:
         bot.stop_polling()
 
     def start_conversion(self, message):
-        markup = self.menu_1(message.chat.id)
+        markup = self.menu_bot.menu_1(message.chat.id)
         msg = bot.send_message(message.chat.id, 'Оберіть вихідну валюту:', reply_markup=markup)
         bot.register_next_step_handler(msg, self.source_currency)
 
@@ -129,7 +135,7 @@ class ConverterBot:
             bot.register_next_step_handler(msg, self.amount_input)
             return
         self.user_data.set(message.chat.id, 'amount', int(amount))
-        markup = self.menu_1(message.chat.id)
+        markup = self.menu_bot.menu_1(message.chat.id)
         msg = bot.send_message(message.chat.id, 'Оберіть цільову валюту:', reply_markup=markup)
         bot.register_next_step_handler(msg, self.result_conversation)
 
@@ -147,7 +153,7 @@ class ConverterBot:
         if rate_sell is None or rate_buy is None:
             bot.send_message(message.chat.id, 'Вибачте, не можу знайти курс для даної валюти.')
             time.sleep(2)
-            markup = self.menu_2(message.chat.id)
+            markup = self.menu_bot.menu_2(message.chat.id)
             self.send_message_with_markup(message.chat.id, 'Бажаєте продовжити далі чи зупинити бота?', markup,
                                           self.continue_or_stop
                                           )
@@ -165,14 +171,14 @@ class ConverterBot:
         bot.send_message(message.chat.id, f'Результат конвертації: {final_amount:.2f} {target_currency}')
         time.sleep(2)
 
-        markup = self.menu_2(message.chat.id)
+        markup = self.menu_bot.menu_2(message.chat.id)
         self.send_message_with_markup(message.chat.id, 'Бажаєте продовжити далі чи зупинити бота?', markup,
                                       self.continue_or_stop
                                       )
 
     def continue_or_stop(self, message):
         if message.text == 'CONTINUE':
-            markup = self.menu_1(message.chat.id)
+            markup = self.menu_bot.menu_1(message.chat.id)
             msg = bot.send_message(message.chat.id, 'Оберіть вихідну валюту:', reply_markup=markup)
             bot.register_next_step_handler(msg, self.source_currency)
         elif message.text == 'END':
@@ -185,7 +191,7 @@ class ConverterBot:
                     history_text += f"Вихідна валюта: {entry['from_currency']}, Цільова валюта: {entry['to_currency']}, Сума: {entry['amount']}, Результат: {entry['result']:.2f}\n"
                 bot.send_message(message.chat.id, history_text)
                 time.sleep(2.5)
-                markup = self.menu_2(message.chat.id)
+                markup = self.menu_bot.menu_2(message.chat.id)
                 msg = bot.send_message(message.chat.id, 'Бажаєте продовжити далі чи зупинити бота?',
                                        reply_markup=markup
                                        )
@@ -202,8 +208,8 @@ def start_command_handler(func):
 
     return wrapper
 
-
-converter_bot = ConverterBot()
+menu_bot = MenuBot()
+converter_bot = ConverterBot(menu_bot)
 
 @bot.message_handler(commands=['start'])
 def welcome(message):
