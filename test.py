@@ -120,16 +120,18 @@ class ConverterBot:
         markup = self.menu_bot.menu_1(message.chat.id)
         msg = bot.send_message(message.chat.id, 'Оберіть вихідну валюту:', reply_markup=markup)
 
-    def source_currency_message(self, message):
-        selected_currency = message.text
-        self.user_data.set(message.chat.id, 'from_currency', selected_currency)
-        msg = bot.send_message(message.chat.id, 'Введіть суму для конвертації:')
-        bot.register_next_step_handler(msg, self.amount_input)
+    def source_currency(self, input):
+        if isinstance(input, types.CallbackQuery):
+            selected_currency = input.data
+            chat_id = input.from_user.id
+        elif isinstance(input, types.Message):
+            selected_currency = input.text
+            chat_id = input.chat.id
+        else:
+            return
 
-    def source_currency_callback(self, call):
-        selected_currency = call.data
-        self.user_data.set(call.from_user.id, 'from_currency', selected_currency)
-        msg = bot.send_message(call.message.chat.id, 'Введіть суму для конвертації:')
+        self.user_data.set(chat_id, 'from_currency', selected_currency)
+        msg = bot.send_message(chat_id, 'Введіть суму для конвертації:')
         bot.register_next_step_handler(msg, self.amount_input)
 
     def amount_input(self, message):
@@ -155,7 +157,7 @@ class ConverterBot:
             time.sleep(2)
             markup = self.menu_bot.menu_2(message.chat.id)
             self.send_message_with_markup(message.chat.id, 'Бажаєте продовжити далі чи зупинити бота?', markup,
-                                          self.continue_or_stop_callback
+                                          self.continue_or_stop
                                           )
             return
         if from_currency == target_currency:
@@ -173,7 +175,7 @@ class ConverterBot:
 
         markup = self.menu_bot.menu_2(message.chat.id)
         self.send_message_with_markup(message.chat.id, 'Бажаєте продовжити далі чи зупинити бота?', markup,
-                                      self.continue_or_stop_callback
+                                      self.continue_or_stop
                                       )
 
     def result_conversation_callback(self, call):
@@ -188,7 +190,7 @@ class ConverterBot:
             time.sleep(2)
             markup = self.menu_bot.menu_2(call.message.chat.id)
             self.send_message_with_markup(call.message.chat.id, 'Бажаєте продовжити далі чи зупинити бота?', markup,
-                                          self.continue_or_stop_callback
+                                          self.continue_or_stop
                                           )
             return
         if from_currency == target_currency:
@@ -206,41 +208,49 @@ class ConverterBot:
 
         markup = self.menu_bot.menu_2(call.message.chat.id)
         self.send_message_with_markup(call.message.chat.id, 'Бажаєте продовжити далі чи зупинити бота?', markup,
-                                      self.continue_or_stop_callback
+                                      self.continue_or_stop
                                       )
 
     def send_message_with_markup(self, chat_id, text, markup, next_step_handler):
         msg = bot.send_message(chat_id, text, reply_markup=markup)
         bot.register_next_step_handler(msg, next_step_handler)
 
-    def continue_or_stop_callback(self, call):       # Клонувати цю функцію і потім змінити з Message
-        if call.data == 'continue':
-            markup = self.menu_bot.menu_1(call.message.chat.id)
-            msg = bot.send_message(call.message.chat.id, 'Оберіть вихідну валюту:', reply_markup=markup)
-            bot.register_next_step_handler(msg, self.source_currency_message)
-        elif call.data == 'end':
-            bot.send_message(call.message.chat.id, 'Дякую. До побачення.')
+    def continue_or_stop(self, input):
+        if isinstance(input, types.CallbackQuery):
+            chat_id = input.from_user.id
+            data = input.data
+        elif isinstance(input, types.Message):
+            chat_id = input.chat.id
+            data = input.text.lower()
+        else:
             return
-        elif call.data == 'history':
-            history_data = self.get_conversion_history(call.message.chat.id)
+
+        if data == 'continue':
+            markup = self.menu_bot.menu_1(chat_id)
+            msg = bot.send_message(chat_id, 'Оберіть вихідну валюту:', reply_markup=markup)
+            bot.register_next_step_handler(msg, self.source_currency if isinstance(input, types.CallbackQuery
+                                                                                            ) else self.source_currency
+                                           )
+        elif data == 'end':
+            bot.send_message(chat_id, 'Дякую. До побачення.')
+        elif data == 'history':
+            history_data = self.get_conversion_history(chat_id)
             if history_data:
                 history_text = 'Історія конвертацій:\n'
                 for entry in history_data:
                     history_text += f"Вихідна валюта: {entry['from_currency']}, Цільова валюта: {entry['to_currency']}, Сума: {entry['amount']}, Результат: {entry['result']:.2f}\n"
-                bot.send_message(call.message.chat.id, history_text)
+                bot.send_message(chat_id, history_text)
                 time.sleep(2.5)
-                markup = self.menu_bot.menu_2(call.message.chat.id)
-                msg = bot.send_message(call.message.chat.id, 'Бажаєте продовжити далі чи зупинити бота?',
-                                       reply_markup=markup
-                                       )
-                bot.register_next_step_handler(msg, self.continue_or_stop_callback)
+                markup = self.menu_bot.menu_2(chat_id)
+                msg = bot.send_message(chat_id, 'Бажаєте продовжити далі чи зупинити бота?', reply_markup=markup)
+                bot.register_next_step_handler(msg, self.continue_or_stop)
             else:
-                bot.send_message(call.message.chat.id, 'Історія конвертацій порожня.')
-                return
+                bot.send_message(chat_id, 'Історія конвертацій порожня.')
+
 
 def start_command_handler(func):
     def wrapper(message):
-        if callback_query == '/start':
+        if message == '/start':
             converter_bot.welcome(message)
         else:
             func(message)
@@ -256,10 +266,10 @@ def welcome(message):
     converter_bot.welcome(message)
     bot.clear_step_handler_by_chat_id(message.chat.id)
 
-converter_bot.source_currency = start_command_handler(converter_bot.source_currency_message)
+converter_bot.source_currency = start_command_handler(converter_bot.source_currency)
 converter_bot.amount_input = start_command_handler(converter_bot.amount_input)
 converter_bot.result_conversation = start_command_handler(converter_bot.result_conversation_message)
-converter_bot.continue_or_stop_callback = start_command_handler(converter_bot.continue_or_stop_callback)
+converter_bot.continue_or_stop_callback = start_command_handler(converter_bot.continue_or_stop)
 
 @bot.message_handler(commands=['convert'])
 @start_command_handler
@@ -271,13 +281,28 @@ def start_conversion(message):
 def handle_message(message):
     pass
 
+@bot.message_handler(func=lambda message: message.text.lower() in ['continue', 'end', 'history'])
+def handle_continue_or_stop_message(message):
+    converter_bot.continue_or_stop(message)
+
+@bot.callback_query_handler(func=lambda call: call.data in ['continue', 'end', 'history'])
+def handle_continue_or_stop_callback(call):
+    converter_bot.continue_or_stop(call)
+
+@bot.message_handler(func=lambda message: True)  # Налаштуйте умову відповідно до вашої логіки
+def handle_source_currency_message(message):
+    converter_bot.source_currency(message)
+
+@bot.callback_query_handler(func=lambda call: True)  # Налаштуйте умову відповідно до вашої логіки
+def handle_source_currency_callback(call):
+    converter_bot.source_currency(call)
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
     if call.data in converter_bot.iso4217_mapping.values():
         user_data = converter_bot.user_data.get(call.message.chat.id, 'from_currency')
         if not user_data:
-            converter_bot.source_currency_callback(call)
+            converter_bot.source_currency(call)
         else:
             converter_bot.result_conversation_callback(call)
     else:
