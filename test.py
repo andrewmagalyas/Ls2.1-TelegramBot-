@@ -144,22 +144,32 @@ class ConverterBot:
         markup = self.menu_bot.menu_1(message.chat.id)
         msg = bot.send_message(message.chat.id, 'Оберіть цільову валюту:', reply_markup=markup)
 
-
-    def result_conversation_message(self, message):
-        from_currency = self.user_data.get(message.chat.id, 'from_currency')
-        amount = self.user_data.get(message.chat.id, 'amount')
-        target_currency = message.text
-        self.user_data.set(message.chat.id, 'to_currency', target_currency)
+    def result_conversation(self, input_data):
+        if isinstance(input_data, types.Message):
+            chat_id = input_data.chat.id
+            from_currency = self.user_data.get(chat_id, 'from_currency')
+            amount = self.user_data.get(chat_id, 'amount')
+            target_currency = input_data.text
+            self.user_data.set(chat_id, 'to_currency', target_currency)
+        elif isinstance(input_data, types.CallbackQuery):
+            chat_id = input_data.message.chat.id
+            from_currency = self.user_data.get(chat_id, 'from_currency')
+            amount = self.user_data.get(chat_id, 'amount')
+            target_currency = input_data.data
+            self.user_data.set(chat_id, 'to_currency', target_currency)
+        else:
+            return
 
         rate_sell, rate_buy = self.get_exchange_rate(840 if target_currency == 'USD' else 978)  # USD: 840, EUR: 978
         if rate_sell is None or rate_buy is None:
-            bot.send_message(message.chat.id, 'Вибачте, не можу знайти курс для даної валюти.')
+            bot.send_message(chat_id, 'Вибачте, не можу знайти курс для даної валюти.')
             time.sleep(2)
-            markup = self.menu_bot.menu_2(message.chat.id)
-            self.send_message_with_markup(message.chat.id, 'Бажаєте продовжити далі чи зупинити бота?', markup,
+            markup = self.menu_bot.menu_2(chat_id)
+            self.send_message_with_markup(chat_id, 'Бажаєте продовжити далі чи зупинити бота?', markup,
                                           self.continue_or_stop
                                           )
             return
+
         if from_currency == target_currency:
             final_amount = amount
         else:
@@ -168,48 +178,16 @@ class ConverterBot:
             else:
                 final_amount = amount / rate_buy
 
-        self.save_conversion_history(message.chat.id, from_currency, target_currency, amount, final_amount)
+        self.save_conversion_history(chat_id, from_currency, target_currency, amount, final_amount)
 
-        bot.send_message(message.chat.id, f'Результат конвертації: {final_amount:.2f} {target_currency}')
+        bot.send_message(chat_id, f'Результат конвертації: {final_amount:.2f} {target_currency}')
         time.sleep(2)
 
-        markup = self.menu_bot.menu_2(message.chat.id)
-        self.send_message_with_markup(message.chat.id, 'Бажаєте продовжити далі чи зупинити бота?', markup,
+        markup = self.menu_bot.menu_2(chat_id)
+        self.send_message_with_markup(chat_id, 'Бажаєте продовжити далі чи зупинити бота?', markup,
                                       self.continue_or_stop
                                       )
 
-    def result_conversation_callback(self, call):
-        from_currency = self.user_data.get(call.from_user.id, 'from_currency')
-        amount = self.user_data.get(call.from_user.id, 'amount')
-        target_currency = call.data
-        self.user_data.set(call.from_user.id, 'to_currency', target_currency)
-
-        rate_sell, rate_buy = self.get_exchange_rate(840 if target_currency == 'USD' else 978)  # USD: 840, EUR: 978
-        if rate_sell is None or rate_buy is None:
-            bot.send_message(call.message.chat.id, 'Вибачте, не можу знайти курс для даної валюти.')
-            time.sleep(2)
-            markup = self.menu_bot.menu_2(call.message.chat.id)
-            self.send_message_with_markup(call.message.chat.id, 'Бажаєте продовжити далі чи зупинити бота?', markup,
-                                          self.continue_or_stop
-                                          )
-            return
-        if from_currency == target_currency:
-            final_amount = amount
-        else:
-            if target_currency == 'UAH':
-                final_amount = amount * rate_sell
-            else:
-                final_amount = amount / rate_buy
-
-        self.save_conversion_history(call.message.chat.id, from_currency, target_currency, amount, final_amount)
-
-        bot.send_message(call.message.chat.id, f'Результат конвертації: {final_amount:.2f} {target_currency}')
-        time.sleep(2)
-
-        markup = self.menu_bot.menu_2(call.message.chat.id)
-        self.send_message_with_markup(call.message.chat.id, 'Бажаєте продовжити далі чи зупинити бота?', markup,
-                                      self.continue_or_stop
-                                      )
 
     def send_message_with_markup(self, chat_id, text, markup, next_step_handler):
         msg = bot.send_message(chat_id, text, reply_markup=markup)
@@ -268,7 +246,7 @@ def welcome(message):
 
 converter_bot.source_currency = start_command_handler(converter_bot.source_currency)
 converter_bot.amount_input = start_command_handler(converter_bot.amount_input)
-converter_bot.result_conversation = start_command_handler(converter_bot.result_conversation_message)
+converter_bot.result_conversation = start_command_handler(converter_bot.result_conversation)
 converter_bot.continue_or_stop_callback = start_command_handler(converter_bot.continue_or_stop)
 
 @bot.message_handler(commands=['convert'])
