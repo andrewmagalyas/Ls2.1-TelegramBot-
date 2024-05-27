@@ -139,10 +139,11 @@ class ConverterBot:
         if not amount.isdigit():
             msg = bot.send_message(message.chat.id, 'Будь ласка, введіть число.')
             bot.register_next_step_handler(msg, self.amount_input)
-            return
+            return msg
         self.user_data.set(message.chat.id, 'amount', int(amount))
         markup = self.menu_bot.menu_1(message.chat.id)
         msg = bot.send_message(message.chat.id, 'Оберіть цільову валюту:', reply_markup=markup)
+
 
     def result_conversation(self, input_data):
         if isinstance(input_data, types.Message):
@@ -166,8 +167,7 @@ class ConverterBot:
             time.sleep(2)
             markup = self.menu_bot.menu_2(chat_id)
             self.send_message_with_markup(chat_id, 'Бажаєте продовжити далі чи зупинити бота?', markup,
-                                          self.continue_or_stop
-                                          )
+                                          self.continue_or_stop)
             return
 
         if from_currency == target_currency:
@@ -247,7 +247,7 @@ def welcome(message):
 converter_bot.source_currency = start_command_handler(converter_bot.source_currency)
 converter_bot.amount_input = start_command_handler(converter_bot.amount_input)
 converter_bot.result_conversation = start_command_handler(converter_bot.result_conversation)
-converter_bot.continue_or_stop_callback = start_command_handler(converter_bot.continue_or_stop)
+converter_bot.continue_or_stop = start_command_handler(converter_bot.continue_or_stop)
 
 @bot.message_handler(commands=['convert'])
 @start_command_handler
@@ -259,21 +259,25 @@ def start_conversion(message):
 def handle_message(message):
     pass
 
-@bot.message_handler(func=lambda message: message.text.lower() in ['continue', 'end', 'history'])
-def handle_continue_or_stop_message(message):
-    converter_bot.continue_or_stop(message)
+@bot.message_handler(func=lambda message: True)
+def handle_messages(message):
+    if message.text.lower() in ['continue', 'end', 'history']:
+        converter_bot.continue_or_stop(message)
+    else:
+        converter_bot.source_currency(message)
 
 @bot.callback_query_handler(func=lambda call: call.data in ['continue', 'end', 'history'])
-def handle_continue_or_stop_callback(call):
+def handle_callback_queries(call):
     converter_bot.continue_or_stop(call)
 
-@bot.message_handler(func=lambda message: True)  # Налаштуйте умову відповідно до вашої логіки
+@bot.message_handler(func=lambda message: True)
 def handle_source_currency_message(message):
     converter_bot.source_currency(message)
 
-@bot.callback_query_handler(func=lambda call: True)  # Налаштуйте умову відповідно до вашої логіки
+@bot.callback_query_handler(func=lambda call: True)
 def handle_source_currency_callback(call):
     converter_bot.source_currency(call)
+
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
@@ -282,8 +286,8 @@ def callback_query(call):
         if not user_data:
             converter_bot.source_currency(call)
         else:
-            converter_bot.result_conversation_callback(call)
+            converter_bot.result_conversation(call)
     else:
-        converter_bot.continue_or_stop_callback(call)
+        converter_bot.continue_or_stop(call)
 
 bot.polling()
