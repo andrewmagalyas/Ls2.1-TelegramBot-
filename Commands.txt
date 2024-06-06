@@ -1,5 +1,4 @@
 start - Start of the bot
 convert - Continue the conversion
 history - Your conversion history
-support - Technical support request
-help - Reference information (Commands: Complaints and suggestions: @andriimahalias)
+support - Technical support request (Complaints and suggestions: @andriimahalias)
