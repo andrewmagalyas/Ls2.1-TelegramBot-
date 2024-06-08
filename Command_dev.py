@@ -6,6 +6,7 @@ import requests
 from dotenv import load_dotenv
 import os
 
+
 load_dotenv()
 
 API_KEY = os.getenv('API_KEY')
@@ -57,7 +58,6 @@ class MenuBot:
         button_history = types.InlineKeyboardButton('History', callback_data='history')
         markup.add(button_continue, button_end, button_history)
         return markup
-
 
 class ConverterBot:
     def __init__(self, menu_bot):
