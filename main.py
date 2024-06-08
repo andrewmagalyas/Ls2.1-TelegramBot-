@@ -9,11 +9,10 @@ import os
 load_dotenv()
 
 API_KEY = os.getenv('API_KEY')
-URL = os.getenv('URL')
+URL = ('https://api.monobank.ua/bank/currency')
 
 bot = telebot.TeleBot(API_KEY)
 url = URL
-
 
 class UserData:
     def __init__(self):
@@ -58,7 +57,6 @@ class MenuBot:
         button_history = types.InlineKeyboardButton('History', callback_data='history')
         markup.add(button_continue, button_end, button_history)
         return markup
-
 
 class ConverterBot:
     def __init__(self, menu_bot):
@@ -245,4 +243,5 @@ def callback_query(call):
 
 
 
-bot.polling()
+if __name__ == '__main__':
+    bot.polling()
