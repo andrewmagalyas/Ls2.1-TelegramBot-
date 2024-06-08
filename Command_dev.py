@@ -14,7 +14,6 @@ URL = os.getenv('URL')
 bot = telebot.TeleBot(API_KEY)
 url = URL
 
-
 class UserData:
     def __init__(self):
         self.data = {}
