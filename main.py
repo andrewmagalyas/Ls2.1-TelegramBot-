@@ -9,7 +9,7 @@ import os
 load_dotenv()
 
 API_KEY = os.getenv('API_KEY')
-URL = os.getenv('URL')
+URL = ('https://api.monobank.ua/bank/currency')
 
 bot = telebot.TeleBot(API_KEY)
 url = URL
